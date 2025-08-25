@@ -30,35 +30,41 @@
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         
+        <!-- Cabeçalho -->
         <header class="text-center mb-8">
             <h1 class="text-2xl md:text-3xl font-bold text-stone-800">Validação de colaboradores</h1>
-            <p class="text-stone-500 mt-2">Selecione uma filial para visualizar os dados em tempo real</p>
+            <p class="text-stone-500 mt-2">Selecione um setor para visualizar os dados em tempo real</p>
         </header>
 
+        <!-- Controles -->
         <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-8">
             <div class="w-full sm:w-80">
-                <label for="branch-select" class="sr-only">Selecionar Filial</label>
-                <select id="branch-select" class="w-full p-3 border border-stone-300 rounded-lg shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition">
-                    <option value="">Carregando filiais...</option>
+                <label for="sector-select" class="sr-only">Selecionar Setor</label>
+                <select id="sector-select" class="w-full p-3 border border-stone-300 rounded-lg shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition">
+                    <option value="">Carregando setores...</option>
                 </select>
             </div>
         </div>
 
+        <!-- Bloco de Descrição / Instruções -->
         <div class="max-w-4xl mx-auto mb-8 p-6 bg-white border border-stone-200 rounded-lg shadow-sm text-stone-700">
             <h2 class="text-xl font-bold text-orange-700 mb-3">Atenção, Líder! Informação Importante sobre o Mérito</h2>
             <div class="space-y-3 text-base">
                 <p>Para garantir um processo de indicação justo e preciso, é fundamental que a validação dos critérios de mérito seja feita com atenção.</p>
-                <p>Ao selecionar a sua filial, você terá acesso imediato aos critérios de elegibilidade de cada colaborador. A indicação <strong>APTO</strong> significa que o colaborador atende ao requisito.</p>
+                <p>Ao selecionar o seu setor, você terá acesso imediato aos critérios de elegibilidade de cada colaborador. A indicação <strong>APTO</strong> significa que o colaborador atende ao requisito.</p>
                 <p>Lembre-se: o colaborador deve estar <strong>APTO</strong> em <em>todos</em> os critérios para ser considerado.</p>
                 <p>Para os colaboradores que cumprirem todos os requisitos, a <strong>avaliação final</strong> será a verificação do <strong>Plano de Desenvolvimento Individual (PDI)</strong>. Apenas aqueles que estiverem com o PDI em dia terão a indicação validada.</p>
                 <p class="font-semibold mt-4">Sua atenção a esses detalhes é crucial para o sucesso da nossa iniciativa.</p>
             </div>
         </div>
 
+        <!-- Feedback de Status -->
         <div id="status-feedback" class="text-center mb-4 h-6 text-stone-500"></div>
 
+        <!-- Container da Lista de Colaboradores -->
         <main id="employee-list" class="flex flex-col gap-4">
-            </main>
+            <!-- Itens da lista de colaboradores serão inseridos aqui -->
+        </main>
 
     </div>
 
@@ -72,9 +78,9 @@
         // ou hospedando o arquivo em um serviço online).
 
         // URL da planilha do Google Sheets publicada como CSV
-        const sheetUrl = 'https://docs.google.com/spreadsheets/d/11mugZl4ro9mfM-B1zXGAU-wpfY9w2Pdg-lgyTQZtAW8/export?format=csv';
+        const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR5G0XZKeEesTNO9yDvEXpjdWyBtwJJr4WRCy-DwhEigRshV8ktLUsfPlIPSegL0gP8sw8w3pK3I9Xf/pub?gid=0&single=true&output=csv';
 
-        const branchSelect = document.getElementById('branch-select');
+        const sectorSelect = document.getElementById('sector-select');
         const employeeList = document.getElementById('employee-list');
         const statusFeedback = document.getElementById('status-feedback');
 
@@ -107,16 +113,16 @@
                 const csvText = await response.text();
                 allData = csvToArray(csvText);
 
-                const currentBranch = branchSelect.value;
+                const currentSector = sectorSelect.value;
                 
-                populateBranchFilter(allData);
+                populateSectorFilter(allData);
 
-                // Mantém a filial selecionada após a atualização
-                if (currentBranch && Array.from(branchSelect.options).some(opt => opt.value === currentBranch)) {
-                    branchSelect.value = currentBranch;
+                // Mantém o setor selecionado após a atualização
+                if (currentSector && Array.from(sectorSelect.options).some(opt => opt.value === currentSector)) {
+                    sectorSelect.value = currentSector;
                 }
                 
-                displayEmployees(branchSelect.value);
+                displayEmployees(sectorSelect.value);
                 
                 const now = new Date();
                 statusFeedback.textContent = `Dados atualizados às ${now.toLocaleTimeString()}`;
@@ -131,36 +137,34 @@
             }
         }
 
-        // Popula o seletor de filiais com opções únicas
-        function populateBranchFilter(data) {
-            const branches = [...new Set(data.map(item => item.FILIAL).filter(Boolean))];
-            
-            // Ordenação numérica customizada
-            branches.sort((a, b) => {
-                const numA = parseInt(a.replace(/\D/g, ''), 10);
-                const numB = parseInt(b.replace(/\D/g, ''), 10);
-                
-                if (isNaN(numA) || isNaN(numB)) {
-                    return a.localeCompare(b); // Fallback para nomes não numéricos
-                }
-                
-                return numA - numB;
-            });
-            
-            const existingOptions = Array.from(branchSelect.options).map(opt => opt.value);
-            
-            if (JSON.stringify(branches) !== JSON.stringify(existingOptions.slice(1))) {
-                const firstOption = branchSelect.querySelector('option:first-child');
-                firstOption.textContent = 'Selecione uma filial';
-                branchSelect.innerHTML = '';
-                branchSelect.appendChild(firstOption);
+        // Popula o seletor de setores com opções únicas
+        function populateSectorFilter(data) {
+            const selectedSector = sectorSelect.value; // Salva a seleção atual
 
-                branches.forEach(branch => {
-                    const option = document.createElement('option');
-                    option.value = branch;
-                    option.textContent = branch;
-                    branchSelect.appendChild(option);
-                });
+            const sectors = [...new Set(data.map(item => item.SETOR).filter(Boolean))];
+            
+            // Ordenação alfabética
+            sectors.sort((a, b) => a.localeCompare(b));
+            
+            sectorSelect.innerHTML = ''; // Limpa as opções existentes
+
+            // Adiciona a opção padrão (placeholder)
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = 'Selecione um setor';
+            sectorSelect.appendChild(placeholderOption);
+
+            // Adiciona as opções para cada setor
+            sectors.forEach(sector => {
+                const option = document.createElement('option');
+                option.value = sector;
+                option.textContent = sector;
+                sectorSelect.appendChild(option);
+            });
+
+            // Restaura a seleção anterior se ainda for válida
+            if (selectedSector && sectors.includes(selectedSector)) {
+                sectorSelect.value = selectedSector;
             }
         }
 
@@ -176,28 +180,28 @@
             return val;
         }
 
-        // Exibe os colaboradores da filial selecionada
-        function displayEmployees(selectedBranch) {
+        // Exibe os colaboradores do setor selecionado
+        function displayEmployees(selectedSector) {
             employeeList.innerHTML = ''; // Limpa a lista atual
 
-            if (!selectedBranch) {
+            if (!selectedSector) {
                 employeeList.innerHTML = `<div class="text-center p-8 bg-orange-100 text-orange-700 rounded-lg">
-                                            <p>Por favor, selecione uma filial no menu acima para começar.</p>
+                                            <p>Por favor, selecione um setor no menu acima para começar.</p>
                                           </div>`;
                 return;
             }
 
-            const branchEmployees = allData.filter(emp => emp.FILIAL === selectedBranch);
+            const sectorEmployees = allData.filter(emp => emp.SETOR === selectedSector);
 
-            if (branchEmployees.length === 0) {
+            if (sectorEmployees.length === 0) {
                 employeeList.innerHTML = `<div class="text-center p-8 bg-yellow-100 text-yellow-700 rounded-lg">
-                                            <p>Nenhum colaborador encontrado para esta filial.</p>
+                                            <p>Nenhum colaborador encontrado para este setor.</p>
                                           </div>`;
                 return;
             }
             
-            const aptos = branchEmployees.filter(emp => emp.ELEGIVEL === 'APTO');
-            const outros = branchEmployees.filter(emp => emp.ELEGIVEL !== 'APTO');
+            const aptos = sectorEmployees.filter(emp => emp.ELEGIVEL === 'APTO');
+            const outros = sectorEmployees.filter(emp => emp.ELEGIVEL !== 'APTO');
             const sortedEmployees = [...aptos, ...outros];
 
             sortedEmployees.forEach(emp => {
@@ -248,9 +252,9 @@
             });
         }
 
-        // Adiciona o evento de mudança ao seletor de filial
-        branchSelect.addEventListener('change', () => {
-            displayEmployees(branchSelect.value);
+        // Adiciona o evento de mudança ao seletor de setor
+        sectorSelect.addEventListener('change', () => {
+            displayEmployees(sectorSelect.value);
         });
 
         // Inicia o processo ao carregar a página e define a atualização automática
