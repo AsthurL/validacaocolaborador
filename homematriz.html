@@ -78,7 +78,7 @@
         // ou hospedando o arquivo em um serviço online).
 
         // URL da planilha do Google Sheets publicada como CSV
-        const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR5G0XZKeEesTNO9yDvEXpjdWyBtwJJr4WRCy-DwhEigRshV8ktLUsfPlIPSegL0gP8sw8w3pK3I9Xf/pub?gid=0&single=true&output=csv';
+        const sheetUrl = 'https://docs.google.com/spreadsheets/d/11mugZl4ro9mfM-B1zXGAU-wpfY9w2Pdg-lgyTQZtAW8/export?format=csv';
 
         const sectorSelect = document.getElementById('sector-select');
         const employeeList = document.getElementById('employee-list');
@@ -88,18 +88,22 @@
 
         // Função para converter texto CSV em um array de objetos
         function csvToArray(csv) {
-            const rows = csv.trim().split('\n');
-            if (rows.length < 2) return [];
+            const rows = csv.trim().split(/\r?\n/);
+            if (rows.length < 2) {
+                console.warn("O arquivo CSV está vazio ou contém apenas o cabeçalho.");
+                return [];
+            }
             
-            const headers = rows[0].split(',').map(header => header.trim());
+            const headers = rows[0].split(',').map(header => header.trim().replace(/^"|"$/g, ''));
             
             return rows.slice(1).map(row => {
-                const values = row.split(',').map(value => value.trim());
+                if (!row.trim()) return null;
+                const values = row.split(',').map(value => value.trim().replace(/^"|"$/g, ''));
                 return headers.reduce((object, header, index) => {
                     object[header] = values[index];
                     return object;
                 }, {});
-            });
+            }).filter(Boolean);
         }
 
         // Função para buscar e processar os dados
@@ -113,11 +117,15 @@
                 const csvText = await response.text();
                 allData = csvToArray(csvText);
 
+                if (allData.length === 0) {
+                    statusFeedback.textContent = 'Nenhum dado encontrado na planilha.';
+                    return;
+                }
+
                 const currentSector = sectorSelect.value;
                 
                 populateSectorFilter(allData);
 
-                // Mantém o setor selecionado após a atualização
                 if (currentSector && Array.from(sectorSelect.options).some(opt => opt.value === currentSector)) {
                     sectorSelect.value = currentSector;
                 }
@@ -139,32 +147,29 @@
 
         // Popula o seletor de setores com opções únicas
         function populateSectorFilter(data) {
-            const selectedSector = sectorSelect.value; // Salva a seleção atual
-
-            const sectors = [...new Set(data.map(item => item.SETOR).filter(Boolean))];
+            if (!data || data.length === 0) return;
             
-            // Ordenação alfabética
+            // Pega o nome do cabeçalho da primeira coluna dinamicamente
+            const sectorColumnName = Object.keys(data[0])[0];
+            
+            const sectors = [...new Set(data.map(item => item[sectorColumnName]).filter(Boolean))];
+            
             sectors.sort((a, b) => a.localeCompare(b));
             
-            sectorSelect.innerHTML = ''; // Limpa as opções existentes
+            const existingOptions = Array.from(sectorSelect.options).map(opt => opt.value);
+            
+            if (JSON.stringify(sectors) !== JSON.stringify(existingOptions.slice(1))) {
+                const firstOption = sectorSelect.querySelector('option:first-child');
+                firstOption.textContent = 'Selecione um setor';
+                sectorSelect.innerHTML = '';
+                sectorSelect.appendChild(firstOption);
 
-            // Adiciona a opção padrão (placeholder)
-            const placeholderOption = document.createElement('option');
-            placeholderOption.value = '';
-            placeholderOption.textContent = 'Selecione um setor';
-            sectorSelect.appendChild(placeholderOption);
-
-            // Adiciona as opções para cada setor
-            sectors.forEach(sector => {
-                const option = document.createElement('option');
-                option.value = sector;
-                option.textContent = sector;
-                sectorSelect.appendChild(option);
-            });
-
-            // Restaura a seleção anterior se ainda for válida
-            if (selectedSector && sectors.includes(selectedSector)) {
-                sectorSelect.value = selectedSector;
+                sectors.forEach(sector => {
+                    const option = document.createElement('option');
+                    option.value = sector;
+                    option.textContent = sector;
+                    sectorSelect.appendChild(option);
+                });
             }
         }
 
@@ -182,7 +187,7 @@
 
         // Exibe os colaboradores do setor selecionado
         function displayEmployees(selectedSector) {
-            employeeList.innerHTML = ''; // Limpa a lista atual
+            employeeList.innerHTML = '';
 
             if (!selectedSector) {
                 employeeList.innerHTML = `<div class="text-center p-8 bg-orange-100 text-orange-700 rounded-lg">
@@ -191,7 +196,12 @@
                 return;
             }
 
-            const sectorEmployees = allData.filter(emp => emp.SETOR === selectedSector);
+            if (!allData || allData.length === 0) return;
+            
+            // Pega o nome do cabeçalho da primeira coluna dinamicamente
+            const sectorColumnName = Object.keys(allData[0])[0];
+
+            const sectorEmployees = allData.filter(emp => emp[sectorColumnName] === selectedSector);
 
             if (sectorEmployees.length === 0) {
                 employeeList.innerHTML = `<div class="text-center p-8 bg-yellow-100 text-yellow-700 rounded-lg">
